@@ -38,73 +38,79 @@ export default function Dashboard() {
   }, []);
 
   if (loading) {
-    return <div className="text-gray-500">Loading dashboard...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
   }
 
   const isAdmin = user?.role === 'admin';
 
   return (
-    <div className="space-y-6">
-      <div className="sm:flex sm:items-center sm:justify-between">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="sm:flex sm:items-center sm:justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name}</h1>
-          <p className="mt-1 text-sm text-gray-500">Here's your {isAdmin ? 'system' : 'attendance'} overview.</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back, {user?.name.split(' ')[0]}</h1>
+          <p className="mt-1 text-sm text-slate-500">Here's your {isAdmin ? 'system' : 'attendance'} overview for today.</p>
         </div>
         <div className="mt-4 sm:mt-0">
           {isAdmin ? (
-            <Button onClick={() => setShowQrDisplay(true)}>
-              <QrCode className="mr-2 h-4 w-4" />
+            <Button onClick={() => setShowQrDisplay(true)} className="w-full sm:w-auto shadow-sm">
+              <QrCode className="mr-2 h-5 w-5" />
               Show Check-In QR
             </Button>
           ) : (
-            <Button onClick={() => setShowQrScanner(true)}>
-              <ScanLine className="mr-2 h-4 w-4" />
+            <Button onClick={() => setShowQrScanner(true)} className="w-full sm:w-auto shadow-sm">
+              <ScanLine className="mr-2 h-5 w-5" />
               Scan QR Check-In
             </Button>
           )}
         </div>
       </div>
 
-      {showQrDisplay && <QrDisplayModal onClose={() => setShowQrDisplay(false)} />}
-      {showQrScanner && <QrScannerModal onClose={() => setShowQrScanner(false)} onSuccess={fetchData} />}
-
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {isAdmin ? (
           <>
-            <StatCard title="Total Users" value={stats?.totalUsers || 0} icon={Users} color="bg-blue-500" />
-            <StatCard title="Present Today" value={stats?.todayPresent || 0} icon={CheckCircle} color="bg-green-500" />
-            <StatCard title="Absent Today" value={stats?.todayAbsent || 0} icon={XCircle} color="bg-red-500" />
-            <StatCard title="Late Today" value={stats?.todayLate || 0} icon={Clock} color="bg-yellow-500" />
+            <StatCard title="Total Users" value={stats?.totalUsers || 0} icon={Users} color="bg-indigo-500" />
+            <StatCard title="Present Today" value={stats?.todayPresent || 0} icon={CheckCircle} color="bg-emerald-500" />
+            <StatCard title="Absent Today" value={stats?.todayAbsent || 0} icon={XCircle} color="bg-rose-500" />
+            <StatCard title="Late Today" value={stats?.todayLate || 0} icon={Clock} color="bg-amber-500" />
           </>
         ) : (
           <>
-            <StatCard title="Total Records" value={stats?.totalRecords || 0} icon={Users} color="bg-blue-500" />
-            <StatCard title="Days Present" value={stats?.present || 0} icon={CheckCircle} color="bg-green-500" />
-            <StatCard title="Days Absent" value={stats?.absent || 0} icon={XCircle} color="bg-red-500" />
-            <StatCard title="Attendance Rate" value={`${stats?.attendanceRate || 0}%`} icon={CheckCircle} color="bg-indigo-500" />
+            <StatCard title="Total Records" value={stats?.totalRecords || 0} icon={Users} color="bg-indigo-500" />
+            <StatCard title="Days Present" value={stats?.present || 0} icon={CheckCircle} color="bg-emerald-500" />
+            <StatCard title="Days Absent" value={stats?.absent || 0} icon={XCircle} color="bg-rose-500" />
+            <StatCard title="Attendance Rate" value={`${stats?.attendanceRate || 0}%`} icon={CheckCircle} color="bg-blue-500" />
           </>
         )}
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">Recent Attendance</h3>
+      <div className="bg-white shadow-sm border border-slate-100 rounded-2xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+          <h3 className="text-base font-semibold text-slate-900">Recent Attendance</h3>
         </div>
         {recent.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">No recent records found.</div>
+          <div className="p-8 text-center text-slate-500 flex flex-col items-center justify-center">
+            <Clock className="h-10 w-10 text-slate-300 mb-3" />
+            <p>No recent records found.</p>
+          </div>
         ) : (
-          <ul className="divide-y divide-gray-200">
+          <ul className="divide-y divide-slate-100">
             {recent.map((record) => (
-              <li key={record.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50">
+              <li key={record.id} className="px-6 py-4 hover:bg-slate-50/80 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
-                    <p className="text-sm font-medium text-blue-600 truncate">{record.user_name}</p>
-                    <p className="flex items-center text-sm text-gray-500 mt-1">
+                    <p className="text-sm font-medium text-slate-900 truncate">{record.user_name}</p>
+                    <p className="flex items-center text-sm text-slate-500 mt-1">
                       {format(new Date(record.date), 'MMMM d, yyyy')}
-                      {record.notes && <span className="ml-2 text-gray-400">- {record.notes}</span>}
+                      {record.notes && <span className="ml-2 text-slate-400 hidden sm:inline">- {record.notes}</span>}
                     </p>
+                    {/* Show notes on mobile below the date instead of hidden */}
+                    {record.notes && <p className="text-xs text-slate-400 mt-1 sm:hidden truncate max-w-[200px]">{record.notes}</p>}
                   </div>
-                  <div className="ml-2 flex-shrink-0 flex">
+                  <div className="ml-2 flex-shrink-0">
                     <StatusBadge status={record.status} />
                   </div>
                 </div>
@@ -113,22 +119,25 @@ export default function Dashboard() {
           </ul>
         )}
       </div>
+
+      {showQrDisplay && <QrDisplayModal onClose={() => setShowQrDisplay(false)} />}
+      {showQrScanner && <QrScannerModal onClose={() => setShowQrScanner(false)} onSuccess={fetchData} />}
     </div>
   );
 }
 
 function StatCard({ title, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white overflow-hidden shadow rounded-lg">
-      <div className="p-5">
+    <div className="bg-white border border-slate-100 shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
+      <div className="p-6">
         <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <Icon className={`h-6 w-6 text-white p-1 rounded-md ${color}`} />
+          <div className={`flex-shrink-0 p-3 rounded-xl ${color} bg-opacity-10`}>
+            <Icon className={`h-6 w-6 ${color.replace('bg-', 'text-')}`} />
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-gray-500 truncate">{title}</dt>
-              <dd className="text-2xl font-semibold text-gray-900">{value}</dd>
+              <dt className="text-sm font-medium text-slate-500 truncate">{title}</dt>
+              <dd className="text-2xl font-bold text-slate-900 mt-1">{value}</dd>
             </dl>
           </div>
         </div>

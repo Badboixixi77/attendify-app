@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { StatusBadge } from './Dashboard';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { Calendar } from 'lucide-react';
 
 export default function Attendance() {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ export default function Attendance() {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const [attRes, usersRes] = await Promise.all([
         api.get(`/attendance?date=${selectedDate}`),
         user?.role === 'admin' ? api.get('/users') : Promise.resolve({ data: [] })
@@ -53,78 +55,105 @@ export default function Attendance() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-
   return (
-    <div className="space-y-6">
-      <div className="sm:flex sm:items-center sm:justify-between">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="sm:flex sm:items-center sm:justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Attendance Records</h1>
-          <p className="mt-2 text-sm text-gray-700">Manage and view attendance for {format(new Date(selectedDate), 'MMMM d, yyyy')}</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Attendance Log</h1>
+          <p className="mt-1 text-sm text-slate-500">Viewing records for {format(new Date(selectedDate), 'MMMM d, yyyy')}</p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex items-center relative">
+          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
           <input 
             type="date" 
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+            className="block w-full rounded-lg border-slate-300 pl-10 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border bg-slate-50/50 cursor-pointer"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
           />
         </div>
       </div>
 
-      <div className="bg-white shadow ring-1 ring-black ring-opacity-5 rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-300">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
-              {user?.role === 'admin' && <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Department</th>}
-              <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-              {user?.role === 'admin' && <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Actions</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {user?.role === 'admin' ? (
-              users.map((u) => {
-                const record = records.find(r => r.user_id === u.id);
-                return (
-                  <tr key={u.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{u.name}</td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{u.department || '-'}</td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {record ? <StatusBadge status={record.status} /> : <span className="text-gray-400 italic">Not marked</span>}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm font-medium space-x-2">
-                      <select 
-                        className="mt-1 block w-full pl-3 pr-10 py-1 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border"
-                        value={record?.status || ''}
-                        onChange={(e) => handleStatusChange(u.id, e.target.value)}
-                      >
-                        <option value="" disabled>Select status...</option>
-                        <option value="present">Present</option>
-                        <option value="absent">Absent</option>
-                        <option value="late">Late</option>
-                        <option value="excused">Excused</option>
-                      </select>
+      <div className="bg-white shadow-sm border border-slate-100 rounded-2xl overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center items-center h-48">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50/50">
+                <tr>
+                  <th className="py-4 pl-6 pr-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
+                  {user?.role === 'admin' && <th className="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Department</th>}
+                  <th className="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  {user?.role === 'admin' && <th className="px-3 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">Admin Action</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {user?.role === 'admin' ? (
+                  users.map((u) => {
+                    const record = records.find(r => r.user_id === u.id);
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="whitespace-nowrap py-4 pl-6 pr-3">
+                          <div className="flex items-center">
+                            <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs mr-3">
+                              {u.name.charAt(0)}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-slate-900">{u.name}</span>
+                              {record?.notes && <span className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{record.notes}</span>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{u.department || '-'}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">
+                          {record ? <StatusBadge status={record.status} /> : <span className="text-slate-400 italic text-sm">Not marked</span>}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm font-medium">
+                          <select 
+                            className="block w-full py-1.5 pl-3 pr-8 text-sm border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md border bg-slate-50"
+                            value={record?.status || ''}
+                            onChange={(e) => handleStatusChange(u.id, e.target.value)}
+                          >
+                            <option value="" disabled>Select status...</option>
+                            <option value="present">Mark Present</option>
+                            <option value="absent">Mark Absent</option>
+                            <option value="late">Mark Late</option>
+                            <option value="excused">Mark Excused</option>
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  records.map((record) => (
+                    <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="whitespace-nowrap py-4 pl-6 pr-3">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-slate-900">{record.user_name}</span>
+                          {record.notes && <span className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{record.notes}</span>}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500">
+                        <StatusBadge status={record.status} />
+                      </td>
+                    </tr>
+                  ))
+                )}
+                
+                {user?.role !== 'admin' && records.length === 0 && (
+                  <tr>
+                    <td colSpan={2} className="py-12 text-center">
+                      <Calendar className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                      <p className="text-sm text-slate-500">No attendance record found for this date.</p>
                     </td>
                   </tr>
-                );
-              })
-            ) : (
-              records.map((record) => (
-                <tr key={record.id}>
-                  <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{record.user_name}</td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                    <StatusBadge status={record.status} />
-                  </td>
-                </tr>
-              ))
-            )}
-            
-            {user?.role !== 'admin' && records.length === 0 && (
-              <tr><td colSpan={2} className="py-4 text-center text-sm text-gray-500">No attendance record found for this date.</td></tr>
-            )}
-          </tbody>
-        </table>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
