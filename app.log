@@ -1,0 +1,26 @@
+
+> attendance-app@1.0.0 dev
+> concurrently "npm run start --prefix backend" "npm run dev --prefix frontend"
+
+[0] 
+[0] > backend@1.0.0 start
+[0] > node server.js
+[0] 
+[1] 
+[1] > dev
+[1] > vite
+[1] 
+[0] Backend server running on port 3001
+[1] 
+[1]   VITE v8.1.4  ready in 196 ms
+[1] 
+[1]   ➜  Local:   http://localhost:5173/
+[1]   ➜  Network: http://169.254.0.21:5173/
+[1] (node:1303) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/user/attendance-app/frontend/postcss.config.js?t=1783926616020 is not specified and it doesn't parse as CommonJS.
+[1] Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+[1] To eliminate this warning, add "type": "module" to /home/user/attendance-app/frontend/package.json.
+[1] (Use `node --trace-warnings ...` to show where the warning was created)
+[1] 7:10:44 AM [vite] changed tsconfig file detected: /home/user/attendance-app/frontend/tsconfig.json - Clearing cache and forcing full-reload to ensure TypeScript is compiled with updated config values.
+[0] Terminated
+[0] npm run start --prefix backend exited with code 143
+[1] npm run dev --prefix frontend exited with code 143

@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+
+# Database (optional: remove this line if you WANT to push the seeded database)
+# backend/attendance.db
+
+# Misc
+.DS_Store
+.vscode/
