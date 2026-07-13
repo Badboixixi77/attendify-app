@@ -3,7 +3,7 @@ import { cn } from "../../lib/utils"
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "outline" | "ghost" | "danger"
+  variant?: "default" | "outline" | "ghost" | "danger" | "secondary"
   size?: "sm" | "md" | "lg"
 }
 
@@ -13,15 +13,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none",
+          "inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]",
           {
-            "bg-blue-600 text-white hover:bg-blue-700": variant === "default",
-            "border border-gray-300 bg-transparent hover:bg-gray-50 text-gray-700": variant === "outline",
-            "hover:bg-gray-100 hover:text-gray-900 text-gray-700": variant === "ghost",
-            "bg-red-600 text-white hover:bg-red-700": variant === "danger",
-            "h-9 px-3": size === "sm",
-            "h-10 py-2 px-4": size === "md",
-            "h-11 px-8": size === "lg",
+            "bg-slate-900 text-white hover:bg-slate-800 shadow-sm hover:shadow": variant === "default",
+            "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm": variant === "outline",
+            "hover:bg-slate-100 hover:text-slate-900 text-slate-600": variant === "ghost",
+            "bg-indigo-50 text-indigo-700 hover:bg-indigo-100": variant === "secondary",
+            "bg-rose-600 text-white hover:bg-rose-700 shadow-sm": variant === "danger",
+            "h-9 px-4": size === "sm",
+            "h-11 px-6": size === "md",
+            "h-12 px-8 text-base": size === "lg",
           },
           className
         )}
