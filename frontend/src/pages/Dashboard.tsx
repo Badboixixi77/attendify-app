@@ -4,9 +4,10 @@ import { api } from '../api';
 import { Users, CheckCircle, XCircle, Clock, QrCode, ScanLine } from 'lucide-react';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import QrDisplayModal from '../components/ui/QrDisplayModal';
 import QrScannerModal from '../components/ui/QrScannerModal';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -47,8 +48,15 @@ export default function Dashboard() {
 
   const isAdmin = user?.role === 'admin';
 
+  // Format chart data dates for display
+  const chartData = stats?.chartData?.map((d: any) => ({
+    ...d,
+    displayDate: format(parseISO(d.date), 'MMM d')
+  })) || [];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Header Area */}
       <div className="sm:flex sm:items-center sm:justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back, {user?.name.split(' ')[0]}</h1>
@@ -69,6 +77,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {isAdmin ? (
           <>
@@ -87,37 +96,86 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="bg-white shadow-sm border border-slate-100 rounded-2xl overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-          <h3 className="text-base font-semibold text-slate-900">Recent Attendance</h3>
-        </div>
-        {recent.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 flex flex-col items-center justify-center">
-            <Clock className="h-10 w-10 text-slate-300 mb-3" />
-            <p>No recent records found.</p>
+      {/* Chart & Recent Activity Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Interactive Chart */}
+        <div className="bg-white shadow-sm border border-slate-100 rounded-2xl overflow-hidden lg:col-span-2">
+          <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <h3 className="text-base font-semibold text-slate-900">7-Day Attendance Trend</h3>
           </div>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {recent.map((record) => (
-              <li key={record.id} className="px-6 py-4 hover:bg-slate-50/80 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <p className="text-sm font-medium text-slate-900 truncate">{record.user_name}</p>
-                    <p className="flex items-center text-sm text-slate-500 mt-1">
-                      {format(new Date(record.date), 'MMMM d, yyyy')}
-                      {record.notes && <span className="ml-2 text-slate-400 hidden sm:inline">- {record.notes}</span>}
-                    </p>
-                    {/* Show notes on mobile below the date instead of hidden */}
-                    {record.notes && <p className="text-xs text-slate-400 mt-1 sm:hidden truncate max-w-[200px]">{record.notes}</p>}
+          <div className="p-6 h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="displayDate" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748b', fontSize: 12 }} 
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748b', fontSize: 12 }} 
+                  allowDecimals={false}
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  labelStyle={{ fontWeight: 'bold', color: '#0f172a' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey={isAdmin ? "present" : "status"} 
+                  name={isAdmin ? "Present Users" : "Attended"}
+                  stroke="#6366f1" 
+                  strokeWidth={3}
+                  fillOpacity={1} 
+                  fill="url(#colorPresent)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Recent Attendance List */}
+        <div className="bg-white shadow-sm border border-slate-100 rounded-2xl overflow-hidden">
+          <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <h3 className="text-base font-semibold text-slate-900">Recent Activity</h3>
+          </div>
+          {recent.length === 0 ? (
+            <div className="p-8 text-center text-slate-500 flex flex-col items-center justify-center h-[300px]">
+              <Clock className="h-10 w-10 text-slate-300 mb-3" />
+              <p>No recent records found.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
+              {recent.map((record) => (
+                <li key={record.id} className="px-6 py-4 hover:bg-slate-50/80 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <p className="text-sm font-medium text-slate-900 truncate">{record.user_name}</p>
+                      <p className="flex items-center text-xs text-slate-500 mt-1">
+                        {format(parseISO(record.date), 'MMM d, yyyy')}
+                      </p>
+                      {record.notes && <p className="text-xs text-slate-400 mt-1 truncate max-w-[150px]">{record.notes}</p>}
+                    </div>
+                    <div className="ml-2 flex-shrink-0">
+                      <StatusBadge status={record.status} />
+                    </div>
                   </div>
-                  <div className="ml-2 flex-shrink-0">
-                    <StatusBadge status={record.status} />
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {showQrDisplay && <QrDisplayModal onClose={() => setShowQrDisplay(false)} />}

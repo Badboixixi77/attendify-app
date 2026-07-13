@@ -5,7 +5,8 @@ import { Button } from '../components/ui/Button';
 import { StatusBadge } from './Dashboard';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { Calendar } from 'lucide-react';
+import { Calendar, Download } from 'lucide-react';
+import { saveAs } from 'file-saver';
 
 export default function Attendance() {
   const { user } = useAuth();
@@ -55,6 +56,34 @@ export default function Attendance() {
     }
   };
 
+  const exportToCSV = () => {
+    if (records.length === 0 && users.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Name,Department,Status,Notes\n";
+
+    if (user?.role === 'admin') {
+      users.forEach(u => {
+        const record = records.find(r => r.user_id === u.id);
+        const status = record ? record.status : "Not marked";
+        const notes = record?.notes ? `"${record.notes.replace(/"/g, '""')}"` : "";
+        csvContent += `"${u.name}","${u.department || ''}",${status},${notes}\n`;
+      });
+    } else {
+      records.forEach(r => {
+        const notes = r.notes ? `"${r.notes.replace(/"/g, '""')}"` : "";
+        csvContent += `"${r.user_name}","${r.department || ''}",${r.status},${notes}\n`;
+      });
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, `Attendance_Export_${selectedDate}.csv`);
+    toast.success("Export downloaded!");
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="sm:flex sm:items-center sm:justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -62,14 +91,21 @@ export default function Attendance() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Attendance Log</h1>
           <p className="mt-1 text-sm text-slate-500">Viewing records for {format(new Date(selectedDate), 'MMMM d, yyyy')}</p>
         </div>
-        <div className="mt-4 sm:mt-0 flex items-center relative">
-          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-          <input 
-            type="date" 
-            className="block w-full rounded-lg border-slate-300 pl-10 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border bg-slate-50/50 cursor-pointer"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
+        <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <input 
+              type="date" 
+              className="block w-full h-11 rounded-xl border-slate-300 pl-10 pr-4 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border bg-slate-50/50 cursor-pointer transition-colors hover:bg-slate-100"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+          </div>
+          
+          <Button variant="outline" onClick={exportToCSV} className="h-11 border-slate-300">
+            <Download className="h-4 w-4 mr-2 text-slate-500" />
+            Export CSV
+          </Button>
         </div>
       </div>
 
@@ -102,7 +138,7 @@ export default function Attendance() {
                             </div>
                             <div className="flex flex-col">
                               <span className="text-sm font-medium text-slate-900">{u.name}</span>
-                              {record?.notes && <span className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{record.notes}</span>}
+                              {record?.notes && <span className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]" title={record.notes}>{record.notes}</span>}
                             </div>
                           </div>
                         </td>

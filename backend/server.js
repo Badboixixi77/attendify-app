@@ -242,6 +242,14 @@ app.get('/api/stats', authenticate, async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
         
+        // Generate last 7 days for the chart
+        const last7Days = [];
+        for(let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            last7Days.push(d.toISOString().split('T')[0]);
+        }
+        
         let stats = {};
         
         if (req.user.role === 'admin') {
@@ -250,17 +258,33 @@ app.get('/api/stats', authenticate, async (req, res) => {
             const todayAbsent = await prisma.attendance.count({ where: { date: today, status: 'absent' } });
             const todayLate = await prisma.attendance.count({ where: { date: today, status: 'late' } });
             
-            stats = { totalUsers, todayPresent, todayAbsent, todayLate };
+            // Chart Data: Present count per day
+            const chartData = await Promise.all(last7Days.map(async (date) => {
+                const count = await prisma.attendance.count({ where: { date, status: { in: ['present', 'late'] } } });
+                return { date, present: count };
+            }));
+            
+            stats = { totalUsers, todayPresent, todayAbsent, todayLate, chartData };
         } else {
             const userTotal = await prisma.attendance.count({ where: { userId: req.user.id } });
             const userPresent = await prisma.attendance.count({ where: { userId: req.user.id, status: 'present' } });
             const userAbsent = await prisma.attendance.count({ where: { userId: req.user.id, status: 'absent' } });
             
+            // Chart Data for individual student
+            const chartData = await Promise.all(last7Days.map(async (date) => {
+                const record = await prisma.attendance.findFirst({ where: { userId: req.user.id, date } });
+                return { 
+                    date, 
+                    status: record ? (record.status === 'present' || record.status === 'late' ? 1 : 0) : 0 
+                };
+            }));
+            
             stats = { 
                 totalRecords: userTotal,
                 present: userPresent,
                 absent: userAbsent,
-                attendanceRate: userTotal > 0 ? Math.round((userPresent / userTotal) * 100) : 0
+                attendanceRate: userTotal > 0 ? Math.round((userPresent / userTotal) * 100) : 0,
+                chartData
             };
         }
         res.json(stats);
