@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@yudiel/react-qr-scanner": "^2.6.0",
     "axios": "^1.18.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -7,6 +8,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hot-toast": "^2.6.0",
+    "react-qr-code": "^2.2.0",
     "react-router-dom": "^7.18.1",
     "tailwind-merge": "^3.6.0"
   },

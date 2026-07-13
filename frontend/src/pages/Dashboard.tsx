@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api';
-import { Users, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Users, CheckCircle, XCircle, Clock, QrCode, ScanLine } from 'lucide-react';
 import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
 import { format } from 'date-fns';
+import QrDisplayModal from '../components/ui/QrDisplayModal';
+import QrScannerModal from '../components/ui/QrScannerModal';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -11,21 +14,26 @@ export default function Dashboard() {
   const [recent, setRecent] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Modals
+  const [showQrDisplay, setShowQrDisplay] = useState(false);
+  const [showQrScanner, setShowQrScanner] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      const [statsRes, attendanceRes] = await Promise.all([
+        api.get('/stats'),
+        api.get('/attendance')
+      ]);
+      setStats(statsRes.data);
+      setRecent(attendanceRes.data.slice(0, 5));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [statsRes, attendanceRes] = await Promise.all([
-          api.get('/stats'),
-          api.get('/attendance')
-        ]);
-        setStats(statsRes.data);
-        setRecent(attendanceRes.data.slice(0, 5));
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
@@ -37,10 +45,28 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name}</h1>
-        <p className="mt-1 text-sm text-gray-500">Here's your {isAdmin ? 'system' : 'attendance'} overview.</p>
+      <div className="sm:flex sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name}</h1>
+          <p className="mt-1 text-sm text-gray-500">Here's your {isAdmin ? 'system' : 'attendance'} overview.</p>
+        </div>
+        <div className="mt-4 sm:mt-0">
+          {isAdmin ? (
+            <Button onClick={() => setShowQrDisplay(true)}>
+              <QrCode className="mr-2 h-4 w-4" />
+              Show Check-In QR
+            </Button>
+          ) : (
+            <Button onClick={() => setShowQrScanner(true)}>
+              <ScanLine className="mr-2 h-4 w-4" />
+              Scan QR Check-In
+            </Button>
+          )}
+        </div>
       </div>
+
+      {showQrDisplay && <QrDisplayModal onClose={() => setShowQrDisplay(false)} />}
+      {showQrScanner && <QrScannerModal onClose={() => setShowQrScanner(false)} onSuccess={fetchData} />}
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {isAdmin ? (

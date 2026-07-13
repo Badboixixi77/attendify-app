@@ -116,6 +116,53 @@ app.delete('/api/users/:id', authenticate, requireAdmin, async (req, res) => {
     }
 });
 
+// --- QR CODE ENDPOINTS ---
+
+// Admin generates a daily QR Code
+app.get('/api/attendance/qr', authenticate, requireAdmin, (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    const qrToken = jwt.sign({ date: today, type: 'daily_checkin' }, JWT_SECRET, { expiresIn: '12h' });
+    res.json({ qrToken, date: today });
+});
+
+// Student scans QR Code to Check In
+app.post('/api/attendance/scan', authenticate, async (req, res) => {
+    const { qrToken, lat, lng } = req.body;
+    
+    try {
+        // Verify Token
+        const decoded = jwt.verify(qrToken, JWT_SECRET);
+        if (decoded.type !== 'daily_checkin') throw new Error('Invalid QR Code');
+        
+        const today = new Date().toISOString().split('T')[0];
+        if (decoded.date !== today) throw new Error('QR Code is expired or invalid for today');
+
+        // Note Geolocation
+        let notes = `Checked in via QR.`;
+        if (lat && lng) {
+            notes += ` (Lat: ${parseFloat(lat).toFixed(4)}, Lng: ${parseFloat(lng).toFixed(4)})`;
+        } else {
+            notes += ` (Location blocked by user)`;
+        }
+
+        const existing = await prisma.attendance.findFirst({
+            where: { userId: req.user.id, date: today }
+        });
+
+        if (existing) {
+            return res.status(400).json({ error: 'You have already checked in today.' });
+        }
+
+        const created = await prisma.attendance.create({
+            data: { userId: req.user.id, date: today, status: 'present', notes }
+        });
+        
+        res.status(201).json({ success: true, record: created });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
 // Attendance CRUD
 app.get('/api/attendance', authenticate, async (req, res) => {
     const { date, user_id } = req.query;
