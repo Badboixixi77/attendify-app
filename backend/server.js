@@ -3,8 +3,9 @@ const path = require('path');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const db = require('./db');
+const { PrismaClient } = require('@prisma/client');
 
+const prisma = new PrismaClient();
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -36,60 +37,79 @@ const requireAdmin = (req, res, next) => {
 // --- ROUTES ---
 
 // Login
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    
-    if (!user || !bcrypt.compareSync(password, user.password)) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+    try {
+        const user = await prisma.user.findUnique({ where: { email } });
+        
+        if (!user || !bcrypt.compareSync(password, user.password)) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        const token = jwt.sign({ id: user.id, role: user.role, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '1d' });
+        res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department } });
+    } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
     }
-    
-    const token = jwt.sign({ id: user.id, role: user.role, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department } });
 });
 
 // Get profile
-app.get('/api/auth/me', authenticate, (req, res) => {
-    const user = db.prepare('SELECT id, name, email, role, department FROM users WHERE id = ?').get(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
-});
-
-// Users CRUD (Admin only for full list, users can see basic info)
-app.get('/api/users', authenticate, (req, res) => {
-    const users = db.prepare('SELECT id, name, email, role, department, created_at FROM users').all();
-    res.json(users);
-});
-
-app.post('/api/users', authenticate, requireAdmin, (req, res) => {
-    const { name, email, password, role, department } = req.body;
+app.get('/api/auth/me', authenticate, async (req, res) => {
     try {
-        const hash = bcrypt.hashSync(password || 'user123', 10);
-        const stmt = db.prepare('INSERT INTO users (name, email, password, role, department) VALUES (?, ?, ?, ?, ?)');
-        const result = stmt.run(name, email, hash, role || 'student', department);
-        
-        const newUser = db.prepare('SELECT id, name, email, role, department, created_at FROM users WHERE id = ?').get(result.lastInsertRowid);
-        res.status(201).json(newUser);
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            select: { id: true, name: true, email: true, role: true, department: true }
+        });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        res.json(user);
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.put('/api/users/:id', authenticate, requireAdmin, (req, res) => {
+// Users CRUD
+app.get('/api/users', authenticate, async (req, res) => {
+    try {
+        const users = await prisma.user.findMany({
+            select: { id: true, name: true, email: true, role: true, department: true, createdAt: true }
+        });
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/users', authenticate, requireAdmin, async (req, res) => {
+    const { name, email, password, role, department } = req.body;
+    try {
+        const hash = bcrypt.hashSync(password || 'user123', 10);
+        const newUser = await prisma.user.create({
+            data: { name, email, password: hash, role: role || 'student', department },
+            select: { id: true, name: true, email: true, role: true, department: true, createdAt: true }
+        });
+        res.status(201).json(newUser);
+    } catch (error) {
+        res.status(400).json({ error: 'Email already exists or invalid data' });
+    }
+});
+
+app.put('/api/users/:id', authenticate, requireAdmin, async (req, res) => {
     const { name, email, role, department } = req.body;
     try {
-        const stmt = db.prepare('UPDATE users SET name = ?, email = ?, role = ?, department = ? WHERE id = ?');
-        stmt.run(name, email, role, department, req.params.id);
-        const updated = db.prepare('SELECT id, name, email, role, department FROM users WHERE id = ?').get(req.params.id);
+        const updated = await prisma.user.update({
+            where: { id: parseInt(req.params.id) },
+            data: { name, email, role, department },
+            select: { id: true, name: true, email: true, role: true, department: true }
+        });
         res.json(updated);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.delete('/api/users/:id', authenticate, requireAdmin, (req, res) => {
+app.delete('/api/users/:id', authenticate, requireAdmin, async (req, res) => {
     try {
-        db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
+        await prisma.user.delete({ where: { id: parseInt(req.params.id) } });
         res.json({ success: true });
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -97,63 +117,73 @@ app.delete('/api/users/:id', authenticate, requireAdmin, (req, res) => {
 });
 
 // Attendance CRUD
-app.get('/api/attendance', authenticate, (req, res) => {
+app.get('/api/attendance', authenticate, async (req, res) => {
     const { date, user_id } = req.query;
-    let query = `
-        SELECT a.id, a.date, a.status, a.notes, a.user_id, u.name as user_name, u.role as user_role, u.department
-        FROM attendance a
-        JOIN users u ON a.user_id = u.id
-        WHERE 1=1
-    `;
-    const params = [];
-    
-    if (date) {
-        query += ` AND a.date = ?`;
-        params.push(date);
+    try {
+        const whereClause = {};
+        if (date) whereClause.date = date;
+        
+        if (user_id) {
+            whereClause.userId = parseInt(user_id);
+        } else if (req.user.role !== 'admin') {
+            whereClause.userId = req.user.id;
+        }
+
+        const records = await prisma.attendance.findMany({
+            where: whereClause,
+            include: { user: true },
+            orderBy: { date: 'desc' }
+        });
+
+        const formatted = records.map(a => ({
+            id: a.id,
+            date: a.date,
+            status: a.status,
+            notes: a.notes,
+            user_id: a.userId,
+            user_name: a.user.name,
+            user_role: a.user.role,
+            department: a.user.department
+        }));
+        res.json(formatted);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
-    if (user_id) {
-        query += ` AND a.user_id = ?`;
-        params.push(user_id);
-    } else if (req.user.role !== 'admin') {
-        // Non-admins only see their own attendance
-        query += ` AND a.user_id = ?`;
-        params.push(req.user.id);
-    }
-    
-    query += ` ORDER BY a.date DESC`;
-    
-    const records = db.prepare(query).all(...params);
-    res.json(records);
 });
 
-app.post('/api/attendance', authenticate, (req, res) => {
+app.post('/api/attendance', authenticate, async (req, res) => {
     const { user_id, date, status, notes } = req.body;
+    const uid = parseInt(user_id);
     
-    // Prevent non-admins from recording attendance for others
-    if (req.user.role !== 'admin' && parseInt(user_id) !== req.user.id) {
+    if (req.user.role !== 'admin' && uid !== req.user.id) {
         return res.status(403).json({ error: 'Cannot record attendance for another user' });
     }
     
     try {
-        // Check if record exists for this date
-        const existing = db.prepare('SELECT id FROM attendance WHERE user_id = ? AND date = ?').get(user_id, date);
+        const existing = await prisma.attendance.findFirst({
+            where: { userId: uid, date: date }
+        });
+
         if (existing) {
-            const stmt = db.prepare('UPDATE attendance SET status = ?, notes = ? WHERE id = ?');
-            stmt.run(status, notes, existing.id);
-            res.json({ id: existing.id, user_id, date, status, notes, updated: true });
+            const updated = await prisma.attendance.update({
+                where: { id: existing.id },
+                data: { status, notes }
+            });
+            res.json({ id: updated.id, user_id: uid, date, status, notes, updated: true });
         } else {
-            const stmt = db.prepare('INSERT INTO attendance (user_id, date, status, notes) VALUES (?, ?, ?, ?)');
-            const result = stmt.run(user_id, date, status, notes);
-            res.status(201).json({ id: result.lastInsertRowid, user_id, date, status, notes });
+            const created = await prisma.attendance.create({
+                data: { userId: uid, date, status, notes: notes || '' }
+            });
+            res.status(201).json({ id: created.id, user_id: uid, date, status, notes: created.notes });
         }
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.delete('/api/attendance/:id', authenticate, requireAdmin, (req, res) => {
+app.delete('/api/attendance/:id', authenticate, requireAdmin, async (req, res) => {
     try {
-        db.prepare('DELETE FROM attendance WHERE id = ?').run(req.params.id);
+        await prisma.attendance.delete({ where: { id: parseInt(req.params.id) } });
         res.json({ success: true });
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -161,23 +191,23 @@ app.delete('/api/attendance/:id', authenticate, requireAdmin, (req, res) => {
 });
 
 // Dashboard Stats
-app.get('/api/stats', authenticate, (req, res) => {
+app.get('/api/stats', authenticate, async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
         
         let stats = {};
         
         if (req.user.role === 'admin') {
-            const totalUsers = db.prepare("SELECT COUNT(*) as count FROM users WHERE role != 'admin'").get().count;
-            const todayPresent = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE date = ? AND status = 'present'").get(today).count;
-            const todayAbsent = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE date = ? AND status = 'absent'").get(today).count;
-            const todayLate = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE date = ? AND status = 'late'").get(today).count;
+            const totalUsers = await prisma.user.count({ where: { role: { not: 'admin' } } });
+            const todayPresent = await prisma.attendance.count({ where: { date: today, status: 'present' } });
+            const todayAbsent = await prisma.attendance.count({ where: { date: today, status: 'absent' } });
+            const todayLate = await prisma.attendance.count({ where: { date: today, status: 'late' } });
             
             stats = { totalUsers, todayPresent, todayAbsent, todayLate };
         } else {
-            const userTotal = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE user_id = ?").get(req.user.id).count;
-            const userPresent = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE user_id = ? AND status = 'present'").get(req.user.id).count;
-            const userAbsent = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE user_id = ? AND status = 'absent'").get(req.user.id).count;
+            const userTotal = await prisma.attendance.count({ where: { userId: req.user.id } });
+            const userPresent = await prisma.attendance.count({ where: { userId: req.user.id, status: 'present' } });
+            const userAbsent = await prisma.attendance.count({ where: { userId: req.user.id, status: 'absent' } });
             
             stats = { 
                 totalRecords: userTotal,
