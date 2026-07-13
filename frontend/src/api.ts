@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 export const api = axios.create({
-    baseURL: 'http://localhost:3001/api',
+  // Use localhost in dev, but use the real domain in production
+  baseURL: import.meta.env.MODE === 'development' ? 'http://localhost:3001/api' : '/api',
 });
 
 api.interceptors.request.use((config) => {
